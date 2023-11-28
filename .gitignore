@@ -1,0 +1,17 @@
+.vscode/
+
+outputs/
+
+models/archive/
+models/ebsynth/
+models/latent-nerf/
+models/prolific_dreamer2d/
+models/prolific_dreamer2d_controlnet/
+models/threestudio/
+models/threestudio-github/
+models/tiny-cuda-nn/
+models/3D-FRONT-ToolBox/
+
+data/3D-FRONT_preprocessed/
+
+_cache*

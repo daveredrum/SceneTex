@@ -1,0 +1,141 @@
+# VSD guidance
+guidance_scale: 7.5
+guidance_scale_phi: 1.0
+phi_scale: 1.0
+grad_scale: 1.0
+latent_lr: 1e-3
+latent_wd: 0
+phi_lr: 1e-4
+latent_encoder_lr: 3e-2
+lr_scheduler_start_factor: 1/3
+lr_scheduler_iters: 300
+phi_update_steps: 1
+rgb_scale: 0
+mv_scale: 0
+mv_apply_step: 0
+
+use_different_t: True
+use_lr_scheduler: False
+phi_v_prediction: False # FIXME v_prediction is still buggy 
+enable_memory_efficient_attention: True
+enable_vae_slicing: True
+enable_half_precision: False
+add_background: False
+join_meshes_as_scene: True
+deterministic_vae_encoding: False
+enable_vae_patch_decoding: False
+use_background: False # add a pseudo background
+enable_clip_benchmark: True
+load_lora_weights: ""
+
+# logging
+show_decoded_latents: True
+show_original_texture: True
+show_visible_texels: False
+show_rgb_gt: False
+
+phi_type: lora # lora / simple_unet
+loss_type: vsd # vsd / sds / l2
+diffusion_type: d2i_controlnet # t2i / d2i / d2i_controlnet
+generation_mode: vsd # t2i / vsd 
+t_schedule: anneal # random / t_stages2 / anneal -> need to set num_anneal_steps
+downsample: vae # interpolate / vae -> refer to texture type below
+
+# rendering
+latent_size: 96 # DO NOT CHANGE unless you know what you're doing!!!
+latent_channels: 3 # DO NOT CHANGE unless you know what you're doing!!!
+render_channels: 3 # DO NOT CHANGE unless you know what you're doing!!!
+render_size: 768 # DO NOT CHANGE unless you know what you're doing!!!
+decode_size: 768 # DO NOT CHANGE unless you know what you're doing!!!
+latent_texture_size: 256 # optimization target size
+latent_background_size: 256 # optimization target size
+decode_texture_size: 128
+texture_size: 4096 # determined by VAE - should be decode_texture_size x8
+faces_per_pixel: 1
+subdivide_factor: 0
+num_cameras: 1
+camera_intervals: 1
+jitter: 0
+depth_threshold: 0.05
+
+# inference camera space - usually don't need to change
+fov: 60
+elev: 30
+azim: [-180, 180]
+
+# training
+seed: 42
+num_steps: 30000
+num_anneal_steps: 5000
+log_steps: 100
+log_latents_views: 10
+batch_size: 1
+verbose_mode: False
+
+# cameras
+use_sphere_cameras: True # False -> use trajectory, True -> use cameras pointing at one target
+use_blenderproc_cameras: False # False -> use trajectory, True -> use cameras sampled from blenderproc
+
+use_random_cameras: True # False -> sample cameras in order, True -> sample cameras randomly
+
+# camera direction
+use_latent_embeddings: False
+
+# studio
+texture_type: hashgrid # latent / rgb / hashgrid / hashgrid_mlp
+render_func_type: mlp # mlp / none
+
+add_view_directions: False
+add_target_positions: True
+add_target_normals: False
+num_view_embedding_layers: 4 # NOTE Siren has input and output layers by default
+view_embedding_hidden_dim: 256
+
+hashgrid_config:
+  otype: HashGrid
+  dtype: full
+  n_levels: 20
+  n_features_per_level: 4 # 1, 2, 4, 8
+  log2_hashmap_size: 24
+  base_resolution: 16
+  max_resolution: 4096
+  # per_level_scale: 1.447269237440378 # 4096
+
+mlp_config:
+  otype: FullyFusedMLP # FullyFusedMLP / CutlassMLP
+  activation: ReLU # do NOT change!!!
+  output_activation: None # do NOT change!!!
+  n_neurons: 128 # FullyFusedMLP only supports 16, 32, 64, or 128.
+  n_hidden_layers: 5
+  out_channels: 3
+
+# instance styles
+enable_anchor_embedding: True
+num_anchors: 4096
+detach_anchors: False
+
+anchor_config:
+  num_heads: 4
+  hidden_size: 128
+  num_mapping_layers: 2
+  anchor_type: flash-attention # self-attention / cross-attention / flash-attention / mean 
+  output_type: none # token / mean / none
+
+# path
+image_path: samples/scene/scene.png
+depth_path: samples/scene/depth.png
+dummy_texture_path: samples/textures/dummy.png
+label_path: samples/scene/label.png
+background: samples/primitives/cube.obj
+
+log_dir: "" # TODO
+
+prompt: "" # TODO
+a_prompt: best quality, high quality, extremely detailed, good geometry, high-res photo
+n_prompt: deformed, extra digit, fewer digits, cropped, worst quality, low quality, smoke, shading, lighting, lumination, shadow, text in image, watermarks
+
+scene_dir: data/scenes
+scene_id: "" # TODO <house_id>/<room_id>
+scene_config_path: ${scene_dir}/${scene_id}/meshes/scene_config.json
+sphere_cameras: ${scene_dir}/${scene_id}/cameras/sphere.yaml
+blenderproc_cameras: ${scene_dir}/${scene_id}/cameras/blenderproc.json
