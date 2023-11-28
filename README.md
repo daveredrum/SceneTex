@@ -11,6 +11,15 @@ We optimize the target texture via a score-distillation-based objective function
 To further secure the style consistency across views, we introduce a cross-attention decoder to predict the RGB values by cross-attending to the pre-sampled reference locations in each instance.
 SceneTex enables various and accurate texture synthesis for 3D-FRONT scenes, demonstrating significant improvements in visual quality and prompt fidelity over the prior texture generation methods.
 
+Please also check out the project website [here](https://daveredrum.github.io/SceneTex/).
+
+For additional detail, please see the SceneTex paper:  
+"[SceneTex: High-Quality Texture Synthesis for Indoor Scenes via Diffusion Priors]()"  
+by [Dave Zhenyu Chen](https://www.niessnerlab.org/members/zhenyu_chen/profile.html), [Haoxuan Li](),
+[Hsin-Ying Lee](https://research.snap.com/team/team-member.html#hsin-ying-lee),
+[Sergey Tulyakov](https://research.snap.com/team/team-member.html#sergey-tulyakov), and [Matthias Nießner](https://www.niessnerlab.org/members/matthias_niessner/profile.html)  
+from [Technical University of Munich](https://www.tum.de/en/) and [Snap Research](https://research.snap.com/).
+
 ## Setup
 
 The code is tested on Ubuntu 20.04 LTS with PyTorch 1.12.1 CUDA 11.3 installed. Please follow the following steps to install PyTorch first. To run our method, you should at least have a NVIDIA GPU with 48 GB RAM (NVIDIA RTX A6000 works for us).
