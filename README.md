@@ -14,7 +14,7 @@ SceneTex enables various and accurate texture synthesis for 3D-FRONT scenes, dem
 Please also check out the project website [here](https://daveredrum.github.io/SceneTex/).
 
 For additional detail, please see the SceneTex paper:  
-"[SceneTex: High-Quality Texture Synthesis for Indoor Scenes via Diffusion Priors]()"  
+"[SceneTex: High-Quality Texture Synthesis for Indoor Scenes via Diffusion Priors](https://arxiv.org/abs/2311.17261)"  
 by [Dave Zhenyu Chen](https://www.niessnerlab.org/members/zhenyu_chen/profile.html), [Haoxuan Li](),
 [Hsin-Ying Lee](https://research.snap.com/team/team-member.html#hsin-ying-lee),
 [Sergey Tulyakov](https://research.snap.com/team/team-member.html#sergey-tulyakov), and [Matthias Nießner](https://www.niessnerlab.org/members/matthias_niessner/profile.html)  
@@ -104,7 +104,14 @@ We provide a template file for all critical parameters in `config/template.yaml`
 If you found our work helpful, please kindly cite this papers:
 
 ```bibtex
-
+@misc{chen2023scenetex,
+      title={SceneTex: High-Quality Texture Synthesis for Indoor Scenes via Diffusion Priors}, 
+      author={Dave Zhenyu Chen and Haoxuan Li and Hsin-Ying Lee and Sergey Tulyakov and Matthias Nießner},
+      year={2023},
+      eprint={2311.17261},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
 ```
 
 ## Acknowledgement
