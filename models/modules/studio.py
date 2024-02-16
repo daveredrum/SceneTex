@@ -1,34 +1,24 @@
-import os
 import json
 import random
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
-import pytorch_lightning as pl
-
-import torchvision
-
-# import tinycudann as tcnn
 
 import numpy as np
 
 from omegaconf import OmegaConf
 
 from pytorch3d.ops import interpolate_face_attributes
-from pytorch3d.renderer import look_at_view_transform
 
 # customized
 import sys
 sys.path.append("./lib")
-from lib.camera_helper import init_trajectory, init_blenderproc_trajectory, init_camera_R_T
+from lib.camera_helper import init_trajectory, init_blender_trajectory, init_blenderproc_trajectory, init_camera_R_T
 from lib.render_helper import init_renderer
 from lib.shading_helper import init_flat_texel_shader
-from lib.projection_helper import get_visible_pixel_uvs, get_all_4_locations
 
 sys.path.append("./models")
-from models.modules.modules import MLP, Siren, HashGrid, HashGridMLP
+from models.modules.modules import MLP
 from models.modules.anchors import AnchorTransformer
 
 class Studio(nn.Module):
@@ -48,142 +38,113 @@ class Studio(nn.Module):
         self._init_camera_settings()
 
     def _init_camera_settings(self):
-        if self.config.use_sphere_cameras and not self.config.use_blenderproc_cameras: # use random cameras
 
-            self.sphere_cameras = OmegaConf.load(self.config.sphere_cameras)
-            
+        self.Rs, self.Ts, self.fovs = [], [], []
+        self.inference_Rs, self.inference_Ts, self.inference_fovs = [], [], []
+
+        if self.config.use_sphere_cameras:
+            sphere_cameras = OmegaConf.load(self.config.sphere_cameras)
+
             dist_linspace = np.linspace(
-                self.sphere_cameras.dist.min,
-                self.sphere_cameras.dist.max,
-                1 if self.sphere_cameras.dist.min == self.sphere_cameras.dist.max else self.sphere_cameras.dist.num_linspace,
+                sphere_cameras.dist.min,
+                sphere_cameras.dist.max,
+                1 if sphere_cameras.dist.min == sphere_cameras.dist.max else sphere_cameras.dist.num_linspace,
             )
             elev_linspace = np.linspace(
-                self.sphere_cameras.elev.min,
-                self.sphere_cameras.elev.max,
-                1 if self.sphere_cameras.elev.min == self.sphere_cameras.elev.max else self.sphere_cameras.elev.num_linspace,
+                sphere_cameras.elev.min,
+                sphere_cameras.elev.max,
+                1 if sphere_cameras.elev.min == sphere_cameras.elev.max else sphere_cameras.elev.num_linspace,
             )
             azim_linspace = np.linspace(
-                self.sphere_cameras.azim.min,
-                self.sphere_cameras.azim.max,
-                1 if self.sphere_cameras.azim.min == self.sphere_cameras.azim.max else self.sphere_cameras.azim.num_linspace,
+                sphere_cameras.azim.min,
+                sphere_cameras.azim.max,
+                1 if sphere_cameras.azim.min == sphere_cameras.azim.max else sphere_cameras.azim.num_linspace,
             )
             fov_linspace = np.linspace(
-                self.sphere_cameras.fov.min,
-                self.sphere_cameras.fov.max,
-                1 if self.sphere_cameras.fov.min == self.sphere_cameras.fov.max else self.sphere_cameras.fov.num_linspace,
+                sphere_cameras.fov.min,
+                sphere_cameras.fov.max,
+                1 if sphere_cameras.fov.min == sphere_cameras.fov.max else sphere_cameras.fov.num_linspace,
             )
-            at = np.array(self.sphere_cameras.at)
+            at = np.array(sphere_cameras.at)
 
             combinations = np.array(np.meshgrid(dist_linspace, elev_linspace, azim_linspace, fov_linspace)).T.reshape(-1, 4)
             dist_list = combinations[:, 0].tolist()
             elev_list = combinations[:, 1].tolist()
             azim_list = combinations[:, 2].tolist()
 
-            self.Rs, self.Ts = init_trajectory(dist_list, elev_list, azim_list, at)
-            self.fov_list = combinations[:, 3].tolist()
+            Rs, Ts = init_trajectory(dist_list, elev_list, azim_list, at)
+            fovs = combinations[:, 3].tolist()
 
-            self.num_cameras = len(self.Rs)
+            self.Rs += Rs
+            self.Ts += Ts
+            self.fovs += fovs
 
-            print("=> using {} spherical cameras for training".format(self.num_cameras))
+            print("=> using {} spherical cameras for training".format(len(Rs)))
 
-        elif not self.config.use_sphere_cameras and self.config.use_blenderproc_cameras:
+            # inference cameras
+            if len(self.inference_Rs) == 0 and len(self.inference_Ts) == 0 and len(self.inference_fovs) == 0:
+                dist_linspace = [sphere_cameras.dist.min] # always take the min dist from spherical cameras
+                elev_linspace = [self.config.elev]
+                azim_linspace = np.linspace(
+                    self.config.azim[0],
+                    self.config.azim[1],
+                    self.config.log_latents_views,
+                )
+                fov_linspace = [self.config.fov]
+                at = np.array(sphere_cameras.at) # always take the cameras center from spherical cameras
 
+                combinations = np.array(np.meshgrid(dist_linspace, elev_linspace, azim_linspace, fov_linspace)).T.reshape(-1, 4)
+                inference_dist_list = combinations[:, 0].tolist()
+                inference_elev_list = combinations[:, 1].tolist()
+                inference_azim_list = combinations[:, 2].tolist()
+                inference_fov_list = combinations[:, 3].tolist()
+                inference_at = at
+
+                self.inference_Rs, self.inference_Ts = init_trajectory(inference_dist_list, inference_elev_list, inference_azim_list, inference_at)
+                self.infernece_fovs = inference_fov_list
+
+        if self.config.use_blenderproc_cameras:
             poses = json.load(open(self.config.blenderproc_cameras))
-            self.Rs, self.Ts = init_blenderproc_trajectory(poses, self.device)
+            Rs, Ts = init_blenderproc_trajectory(poses, self.device)
+            fovs = [self.config.fov] * len(Rs)
 
-            self.num_cameras = len(self.Rs)
-            self.fov_list = [self.config.fov] * self.num_cameras
+            self.Rs += Rs
+            self.Ts += Ts
+            self.fovs += fovs
 
-            print("=> using {} blenderproc cameras for training".format(self.num_cameras))
+            print("=> using {} blenderproc cameras for training".format(len(Rs)))
 
-        elif self.config.use_sphere_cameras and self.config.use_blenderproc_cameras:
+            # inference cameras
+            if len(self.inference_Rs) == 0 and len(self.inference_Ts) == 0 and len(self.inference_fovs) == 0:
+                interval = len(self.Rs) // self.config.log_latents_views
+                self.inference_Rs = [r for i, r in enumerate(self.Rs) if i % interval == 0]
+                self.inference_Ts = [t for i, t in enumerate(self.Ts) if i % interval == 0]
+                self.infernece_fovs = [self.config.fov for _ in range(self.config.log_latents_views)]
 
-            # spherical cameras
-            self.sphere_cameras = OmegaConf.load(self.config.sphere_cameras)
-            
-            dist_linspace = np.linspace(
-                self.sphere_cameras.dist.min,
-                self.sphere_cameras.dist.max,
-                1 if self.sphere_cameras.dist.min == self.sphere_cameras.dist.max else self.sphere_cameras.dist.num_linspace,
-            )
-            elev_linspace = np.linspace(
-                self.sphere_cameras.elev.min,
-                self.sphere_cameras.elev.max,
-                1 if self.sphere_cameras.elev.min == self.sphere_cameras.elev.max else self.sphere_cameras.elev.num_linspace,
-            )
-            azim_linspace = np.linspace(
-                self.sphere_cameras.azim.min,
-                self.sphere_cameras.azim.max,
-                1 if self.sphere_cameras.azim.min == self.sphere_cameras.azim.max else self.sphere_cameras.azim.num_linspace,
-            )
-            fov_linspace = np.linspace(
-                self.sphere_cameras.fov.min,
-                self.sphere_cameras.fov.max,
-                1 if self.sphere_cameras.fov.min == self.sphere_cameras.fov.max else self.sphere_cameras.fov.num_linspace,
-            )
-            at = np.array(self.sphere_cameras.at)
+        if self.config.use_blender_cameras:
+            poses = json.load(open(self.config.blender_cameras))
+            Rs, Ts = init_blender_trajectory(poses, self.device)
+            fovs = [self.config.fov] * len(Rs)
 
-            combinations = np.array(np.meshgrid(dist_linspace, elev_linspace, azim_linspace, fov_linspace)).T.reshape(-1, 4)
-            dist_list = combinations[:, 0].tolist()
-            elev_list = combinations[:, 1].tolist()
-            azim_list = combinations[:, 2].tolist()
+            self.Rs += Rs
+            self.Ts += Ts
+            self.fovs += fovs
 
-            sphere_Rs, sphere_Ts = init_trajectory(dist_list, elev_list, azim_list, at)
-            sphere_fov_list = combinations[:, 3].tolist()
+            print("=> using {} blender cameras for training".format(len(Rs)))
 
-            # blenderproc cameras
-            poses = json.load(open(self.config.blenderproc_cameras))
-            blenderproc_Rs, blenderproc_Ts = init_blenderproc_trajectory(poses, self.device)
-            blenderproc_fov_list = [self.config.fov] * len(blenderproc_Rs)
-            
-            self.Rs = sphere_Rs + blenderproc_Rs
-            self.Ts = sphere_Ts + blenderproc_Ts
-            self.fov_list =  sphere_fov_list + blenderproc_fov_list
-            self.num_cameras = len(self.Rs)
+            # inference cameras
+            if len(self.inference_Rs) == 0 and len(self.inference_Ts) == 0 and len(self.inference_fovs) == 0:
+                interval = len(self.Rs) // self.config.log_latents_views
+                self.inference_Rs = [r for i, r in enumerate(self.Rs) if i % interval == 0]
+                self.inference_Ts = [t for i, t in enumerate(self.Ts) if i % interval == 0]
+                self.infernece_fovs = [self.config.fov for _ in range(self.config.log_latents_views)]
 
-            print("=> using {} spherical cameras and {} blenderproc cameras for training".format(len(sphere_Rs), len(blenderproc_Rs)))
-
-            # self.sphere_Rs = sphere_Rs
-            # self.sphere_Ts = sphere_Ts
-            # self.sphere_fov_list =  sphere_fov_list
-            # self.num_sphere_cameras = len(self.sphere_Rs)
-
-            # self.Rs = sphere_Rs + blenderproc_Rs
-            # self.Ts = sphere_Ts + blenderproc_Ts
-            # self.fov_list =  sphere_fov_list + blenderproc_fov_list
-            # self.num_cameras = len(self.Rs)
-
-            # print("=> using {} spherical cameras and {} blenderproc cameras for training".format(len(sphere_Rs), len(blenderproc_Rs)))
-            # print("=> using {} cameras before annealing and {} cameras afterwards".format(self.num_sphere_cameras, self.num_cameras))
-
-        else: # use fixed cameras
-            raise NotImplementedError
-
-        # for inference 
-        # FIXME only support spherical cameras for now
-        # spherical cameras
-        self.sphere_cameras = OmegaConf.load(self.config.sphere_cameras)
-
-        dist_linspace = [self.sphere_cameras.dist.min] # always take the min dist from spherical cameras
-        elev_linspace = [self.config.elev]
-        azim_linspace = np.linspace(
-            self.config.azim[0],
-            self.config.azim[1],
-            self.config.log_latents_views,
-        )
-        fov_linspace = [self.config.fov]
-        at = np.array(self.sphere_cameras.at) # always take the cameras center from spherical cameras
-
-        combinations = np.array(np.meshgrid(dist_linspace, elev_linspace, azim_linspace, fov_linspace)).T.reshape(-1, 4)
-        self.inference_dist_list = combinations[:, 0].tolist()
-        self.inference_elev_list = combinations[:, 1].tolist()
-        self.inference_azim_list = combinations[:, 2].tolist()
-        self.inference_fov_list = combinations[:, 3].tolist()
-        self.inference_at = at
-
-        self.num_inference_cameras = len(self.inference_dist_list)
+        self.num_cameras = len(self.Rs)
+        self.num_inference_cameras = len(self.inference_Rs)
+        assert self.num_cameras > 0 and self.num_inference_cameras > 0, "no camera defined!"
 
         print("=> using {} cameras for training, {} cameras for inference.".format(self.num_cameras, self.num_inference_cameras))
+
 
     def _init_render_func(self):
         if self.config.render_func_type == "mlp":
@@ -239,12 +200,7 @@ class Studio(nn.Module):
         R, T, fov, idx = None, None, None, None
         if inference:
             idx = step % self.num_inference_cameras
-            dist = self.inference_dist_list[idx]
-            elev = self.inference_elev_list[idx]
-            azim = self.inference_azim_list[idx]
-            fov = self.inference_fov_list[idx]
-            at = self.inference_at
-            R, T = look_at_view_transform(dist, elev, azim, at=at)
+            R, T, fov = self.inference_Rs[idx], self.inference_Ts[idx], self.infernece_fovs[idx]
         else:
 
             if random_cameras:
@@ -252,25 +208,7 @@ class Studio(nn.Module):
             else:
                 idx = step % self.num_cameras
 
-            R, T, fov = self.Rs[idx], self.Ts[idx], self.fov_list[idx]
-
-            # if self.config.use_sphere_cameras and self.config.use_blenderproc_cameras and step < self.config.num_anneal_steps:
-                
-            #     if random_cameras:
-            #         idx = random.choice(range(self.num_sphere_cameras))
-            #     else:
-            #         idx = step % self.num_sphere_cameras
-
-            #     R, T, fov = self.sphere_Rs[idx], self.sphere_Ts[idx], self.sphere_fov_list[idx]
-
-            # else:
-
-            #     if random_cameras:
-            #         idx = random.choice(range(self.num_cameras))
-            #     else:
-            #         idx = step % self.num_cameras
-
-            #     R, T, fov = self.Rs[idx], self.Ts[idx], self.fov_list[idx]
+            R, T, fov = self.Rs[idx], self.Ts[idx], self.fovs[idx]
 
         return R, T, fov, idx
     

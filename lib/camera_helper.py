@@ -264,8 +264,15 @@ def init_blender_trajectory(trajectory, device):
             [np.sin(np.pi), np.cos(np.pi), 0],
             [0, 0, 1]
         ]).to(device)
+        rot_y = torch.FloatTensor([
+            [np.cos(np.pi), 0, -np.sin(np.pi), 0],
+            [0, 1, 0, 0],
+            [np.sin(np.pi), 0, np.cos(np.pi), 0],
+            [0, 0, 0, 1]
+        ]).to(device)
 
         c2w = calibrate_axis @ c2w
+        c2w = rot_y @ c2w
 
         t = c2w[:3,-1]  # Extract translation of the camera
         r = c2w[:3, :3] @ rot_z # Extract rotation matrix of the camera

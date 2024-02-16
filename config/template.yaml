@@ -75,6 +75,7 @@ verbose_mode: False
 # cameras
 use_sphere_cameras: True # False -> use trajectory, True -> use cameras pointing at one target
 use_blenderproc_cameras: False # False -> use trajectory, True -> use cameras sampled from blenderproc
+use_blender_cameras: False # False -> use trajectory, True -> use cameras sampled from blender
 
 use_random_cameras: True # False -> sample cameras in order, True -> sample cameras randomly
 
@@ -139,3 +140,4 @@ scene_id: "" # TODO <house_id>/<room_id>
 scene_config_path: ${scene_dir}/${scene_id}/meshes/scene_config.json
 sphere_cameras: ${scene_dir}/${scene_id}/cameras/sphere.yaml
 blenderproc_cameras: ${scene_dir}/${scene_id}/cameras/blenderproc.json
+blender_cameras: ${scene_dir}/${scene_id}/cameras/blender.json
