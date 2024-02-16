@@ -22,7 +22,7 @@ from [Technical University of Munich](https://www.tum.de/en/) and [Snap Research
 
 ## Setup
 
-The code is tested on Ubuntu 20.04 LTS with PyTorch 1.12.1 CUDA 11.3 installed. Please follow the following steps to install PyTorch first. To run our method, you should at least have a NVIDIA GPU with 48 GB RAM (NVIDIA RTX A6000 works for us).
+The code is tested on Ubuntu 20.04 LTS with PyTorch 2.0.1 CUDA 11.7 installed. Please follow the following steps to install PyTorch first. To run our method, you should at least have a NVIDIA GPU with 48 GB RAM (NVIDIA RTX A6000 works for us).
 
 ```shell
 # create and activate the conda environment
@@ -47,7 +47,6 @@ conda install pytorch3d -c pytorch3d
 Install `xformers` to accelerate transformers:
 
 ```shell
-# please don't use pip to install it, as it only supports PyTorch>=2.0
 conda install xformers -c xformers
 ```
 
