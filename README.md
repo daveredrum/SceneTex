@@ -99,9 +99,17 @@ We provide a template file for all critical parameters in `config/template.yaml`
 
 ### :star2: Try on your own scenes :star2:
 
-Our method is of course not limited to 3D-FRONT synthetic scenes. It can also be applied to your own synthetic scenes, and even to real indoor scenes such as ScanNet or to outdoor scenes. Here, we provide a thorough guideline for setting up the input data structure.
+Our method is of course not limited to 3D-FRONT synthetic scenes. It can also be applied to your own synthetic scenes, and even to real indoor scenes such as ScanNet or to outdoor scenes. We provide some cool results beyond 3D-FRONT scenes:
 
-On a high level, your data should be constructed under `data/` like this:
+1. Real Indoor Scene from ScanNet:
+
+<p align="center"><img src="docs/samples/beyond_3d_front/scannet.jpg" width="100%"/></p>
+
+2. Ourdoor Scene:
+
+<p align="center"><img src="docs/samples/beyond_3d_front/blacksmith_shop.jpg" width="100%"/></p>
+
+Here, we provide a thorough guideline for setting up the input data structure. On a high level, your data should be constructed under `data/` like this:
 
 ```
 data/
@@ -234,15 +242,7 @@ scene_id=""       # TODO input <name-of-your-scene>
 python python scripts/train_texture.py --config config/template.yaml --stamp $stamp --log_dir $log_dir --prompt "$prompt" --scene_id "$scene_id"
 ```
 
-Now everything is in place. Let's run it! We provide some cool results beyond 3D-FRONT scenes:
-
-1. Real Indoor Scene from ScanNet:
-
-<p align="center"><img src="docs/samples/beyond_3d_front/scannet.jpg" width="100%"/></p>
-
-2. Ourdoor Scene:
-
-<p align="center"><img src="docs/samples/beyond_3d_front/blacksmith_shop.jpg" width="100%"/></p>
+Now everything is in place. Let's run it! 
 
 ## Citation
 
